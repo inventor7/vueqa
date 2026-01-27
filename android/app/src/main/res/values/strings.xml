@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8' ?>
+<resources>
+    <string name="app_name">Vueqa</string>
+    <string name="title_activity_main">Vueqa</string>
+    <string name="package_name">io.vueqa.inv</string>
+    <string name="custom_url_scheme">io.vueqa.inv</string>
+</resources>

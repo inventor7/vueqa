@@ -1,0 +1,36 @@
+@import "framework7/css/bundle";
+
+@import "tailwindcss";
+
+*{
+    -moz-user-select: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.toolbar.tabbar .tab-link .icon.material-icons {
+    font-family: "Material Icons Outlined";
+}
+
+.toolbar.tabbar .tab-link.tab-link-active .icon.material-icons {
+    font-family: "Material Icons" !important;
+}
+
+/* ===================================================
+   Fix: Bottom Toolbar/Tabbar Overlap
+   ===================================================
+*/
+
+.ios .page-content {
+    padding-bottom: 90px !important;
+}
+
+.md .page-content {
+    padding-bottom: 78px !important;
+}
+
+
+.toast-click-to-exist-app {
+ margin-bottom: calc(var(--f7-toolbar-height) + 24px) !important;  
+}
+
