@@ -11,7 +11,7 @@ Framework7.use(Framework7Vue);
 
 const app = createApp(App);
 
-app.use(sqLitePlugin);
+await sqLitePlugin();
 app.use(piniaPlugin);
 app.use(i18nPlugin);
 await openreplayPlugin(app);

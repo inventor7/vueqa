@@ -1,46 +1,19 @@
-import { Kysely } from "kysely";
-import CapacitorSQLiteKyselyDialect from "capacitor-sqlite-kysely";
-import {
-  CapacitorSQLite,
-  SQLiteConnection,
-  type SQLiteDBConnection,
-} from "@capacitor-community/sqlite";
+import { type Kysely } from "kysely";
+import { sqlite, getKyselyInstance, initConnection } from "./kysely";
 import type { Database } from "@/shared/database/global.schema";
+import { type SQLiteDBConnection } from "@capacitor-community/sqlite";
 
-export const sqlite = new SQLiteConnection(CapacitorSQLite);
-
-let _kyselyInstance: Kysely<Database> | null = null;
+export { sqlite, initConnection };
 
 /**
- * Typed database instance for all Kysely operations (queries, schema, transactions).
- * Lazy-loaded to avoid jeep-sqlite timing issues on web.
- *
- * @example
- * ```ts
- * // Queries
- * const customers = await db.selectFrom("customers").selectAll().execute();
- *
- * // Schema
- * await db.schema.createTable("users").addColumn("id", "integer").execute();
- *
- * // Transactions
- * await db.transaction().execute(async (trx) => {
- *   await trx.insertInto("users").values({ name: "Alice" }).execute();
- * });
- * ```
+ * Typed database instance for all Kysely operations.
  */
 export const db = new Proxy({} as Kysely<Database>, {
   get(target, prop) {
-    if (!_kyselyInstance) {
-      _kyselyInstance = new Kysely<Database>({
-        dialect: new CapacitorSQLiteKyselyDialect(sqlite, {
-          name: import.meta.env.VITE_DB_FILENAME,
-        }),
-      });
-    }
-    const value = (_kyselyInstance as any)[prop];
+    const instance = getKyselyInstance();
+    const value = (instance as any)[prop];
     if (typeof value === "function") {
-      return value.bind(_kyselyInstance);
+      return value.bind(instance);
     }
     return value;
   },
@@ -70,3 +43,17 @@ export async function getRawConnection(
 ): Promise<SQLiteDBConnection> {
   return await sqlite.retrieveConnection(dbName, false);
 }
+
+// Reactive Database Layer
+export { rdb, executeWithEvent } from "./reactive/reactiveDb";
+export {
+  emitTableChange,
+  onTableChange,
+  onAnyChange,
+} from "./reactive/dbEvents";
+export type {
+  TableChangeEvent,
+  ChangeType,
+  ReactiveQueryOptions,
+  OptimisticMutationOptions,
+} from "./reactive/types";

@@ -128,6 +128,9 @@ importers:
       kysely:
         specifier: ^0.28.9
         version: 0.28.9
+      mitt:
+        specifier: ^3.0.1
+        version: 3.0.1
       pinia:
         specifier: ^3.0.4
         version: 3.0.4(typescript@5.9.3)(vue@3.5.25(typescript@5.9.3))

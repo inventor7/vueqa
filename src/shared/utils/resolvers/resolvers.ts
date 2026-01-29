@@ -42,7 +42,7 @@ export function Framework7VueResolver(): ComponentResolver {
     // "f7-form",
     // "f7-input",
     // "f7-textarea",
-    // "f7-checkbox",
+    "f7-checkbox",
     // "f7-radio",
     "f7-toggle",
     // "f7-range",

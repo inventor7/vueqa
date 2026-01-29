@@ -3,6 +3,12 @@
     <F7Views tabs animated class="safe-areas">
       <F7View name="home" id="view-home" main tab tab-active url="/"></F7View>
       <F7View name="demo" id="view-demo" tab url="/demo"></F7View>
+      <F7View
+        name="reactive"
+        id="view-reactive"
+        tab
+        url="/reactive-demo"
+      ></F7View>
 
       <F7Toolbar tabbar icons bottom class="toolbar-main-app">
         <div class="toolbar-pane">
@@ -19,6 +25,13 @@
             icon-ios="f7:speedometer"
             icon-md="material:speed"
             text="Demo"
+            ripple-color="transparent"
+          />
+          <F7Link
+            tab-link="#view-reactive"
+            icon-ios="f7:wand_stars"
+            icon-md="material:auto_awesome"
+            text="Reactive"
             ripple-color="transparent"
           />
         </div>

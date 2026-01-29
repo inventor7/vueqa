@@ -1,6 +1,4 @@
-// import { type DeliveryDatabaseSchema } from "@/modules/delivery/database/schema";
 import { type HomeDatabaseSchema } from "@/modules/home/database/schema";
+import { type ReactiveDemoSchema } from "@/modules/reactive/database/schema";
 
-export interface Database extends HomeDatabaseSchema {
-  // export interface Database extends HomeDatabaseSchema, DeliveryDatabaseSchema {}
-}
+export interface Database extends HomeDatabaseSchema, ReactiveDemoSchema {}

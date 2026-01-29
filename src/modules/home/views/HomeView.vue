@@ -92,6 +92,20 @@
       </F7ListItem>
     </F7List>
 
+    <F7BlockTitle>Interactive Demos</F7BlockTitle>
+    <F7List strong inset class="rounded-2xl! shadow-sm">
+      <F7ListItem
+        link="/reactive-demo"
+        title="Reactive SQLite Demo"
+        after="Try it"
+      >
+        <template #media>
+          <ILucideZap class="text-yellow-500" />
+        </template>
+        <template #subtitle>Real-time DB Reactivity</template>
+      </F7ListItem>
+    </F7List>
+
     <F7Block class="text-center text-gray-400 text-sm">
       <p>
         Start building by creating a new module in <code>src/modules/</code>.

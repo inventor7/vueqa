@@ -1,23 +1,32 @@
 import { defineCustomElements as jeepSqlite } from "jeep-sqlite/loader";
 import { Capacitor } from "@capacitor/core";
-import { CapacitorSQLite, SQLiteConnection } from "@capacitor-community/sqlite";
+import { sqlite, initConnection } from "@/shared/database";
 
-const sqLite = () => {
+const sqLite = async () => {
   if (Capacitor.getPlatform() === "web") {
     jeepSqlite(window);
 
     const jeepEl = document.createElement("jeep-sqlite");
     document.body.appendChild(jeepEl);
 
-    window.addEventListener("DOMContentLoaded", async () => {
-      const sqlite = new SQLiteConnection(CapacitorSQLite);
+    try {
+      await sqlite.initWebStore();
+      // Allow some time for jeep-sqlite to settle
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
-      try {
-        await sqlite.initWebStore();
-      } catch (err) {
-        console.error("Error initializing SQLite web store:", err);
-      }
-    });
+      // Pre-initialize connection to avoid "No available connection" on web
+      await initConnection();
+      console.log("✅ SQLite Web Store & Connection Initialized");
+    } catch (err) {
+      console.error("Error initializing SQLite web store:", err);
+    }
+  } else {
+    // On native, Kysely handles the connection, but we can still pre-warm it
+    try {
+      await initConnection();
+    } catch (err) {
+      console.error("Error pre-warming native SQLite connection:", err);
+    }
   }
 };
 
