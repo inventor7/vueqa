@@ -100,7 +100,7 @@
     "pinia": "^3.0.4",
     "pinia-plugin-persistedstate": "^4.7.1",
     "skeleton-elements": "^4.0.1",
-    "sql.js": "1.11.0",
+    "sql.js": "1.13.0",
     "swiper": "^12.0.3",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.18",
