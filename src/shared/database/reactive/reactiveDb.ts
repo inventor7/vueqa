@@ -13,16 +13,11 @@ import type { Database } from "@/shared/database/global.schema";
 import { emitTableChange } from "./dbEvents";
 import type { ChangeType } from "./types";
 
-function getDb(): Kysely<Database> {
-  return getKyselyInstance();
-}
-
 /**
  * Extract table name from Kysely query builder
  * This is a helper to determine which table a query is operating on
  */
 function extractTableName(query: any): string | null {
-  // Try to get table name from the query builder's internal state
   const queryNode = query?.toOperationNode?.();
 
   if (queryNode?.kind === "InsertQueryNode") {
@@ -129,7 +124,7 @@ function wrapBuilder(builder: any, table: string, changeType: ChangeType): any {
  */
 export const rdb = new Proxy({} as Kysely<Database>, {
   get(target, prop) {
-    const db = getDb(); // Lazy load
+    const db = getKyselyInstance(); // Lazy load
     const value = (db as any)[prop];
 
     // Only intercept mutation methods

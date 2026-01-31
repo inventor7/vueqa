@@ -2,7 +2,7 @@
   <F7App v-bind="f7Params">
     <F7Views tabs animated class="safe-areas">
       <F7View name="home" id="view-home" main tab tab-active url="/"></F7View>
-      <F7View name="demo" id="view-demo" tab url="/demo"></F7View>
+      <F7View  name="demo" id="view-demo" tab url="/demo"></F7View>
       <F7View
         name="reactive"
         id="view-reactive"

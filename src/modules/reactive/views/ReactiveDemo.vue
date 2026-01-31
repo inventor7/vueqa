@@ -193,6 +193,7 @@
 import { ref, watch, nextTick, onMounted } from "vue";
 import { useTasks } from "../composables/useTasks";
 import { useLogStore } from "../stores/log.store";
+import { executeWithEvent, getRawConnection } from "@/shared/database";
 import {
   initReactiveDemo,
   isDatabaseInitialized,
@@ -224,6 +225,9 @@ onMounted(async () => {
       // Trigger a refetch to load initial data
       await refetch();
     }
+
+    // Start reactivity test after 5 seconds as requested by the user
+    startReactivityTest();
   } catch (error) {
     logStore.addLog("event", "❌ DB Initialization Error");
     console.error("DB Init Error:", error);
@@ -231,6 +235,31 @@ onMounted(async () => {
     isInitializing.value = false;
   }
 });
+
+const startReactivityTest = () => {
+  setTimeout(async () => {
+    const conn = await getRawConnection();
+
+    for (let i = 1; i <= 5; i++) {
+      // Wait 1 second between injections to see them appear one by one
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Use executeWithEvent to manually trigger reactivity when using raw connection
+      await executeWithEvent("tasks", "insert", async () => {
+        return await conn.run(
+          `INSERT INTO tasks (title, priority, description, created_at)
+           VALUES (?, ?, ?, ?)`,
+          [
+            `Raw Connection Task #${i}`,
+            i % 2 === 0 ? "high" : "low",
+            "Injected via getRawConnection directly ⚡",
+            new Date().toISOString(),
+          ],
+        );
+      });
+    }
+  }, 5000);
+};
 
 const newTaskTitle = ref("");
 const newTaskPriority = ref<"low" | "medium" | "high">("medium");

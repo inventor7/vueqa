@@ -1,7 +1,7 @@
 import { type capSQLiteSet } from "@capacitor-community/sqlite";
 import { Capacitor } from "@capacitor/core";
 import { sql } from "kysely";
-import { db, getRawConnection, sqlite } from "@/shared/database";
+import { rdb, getRawConnection, sqlite } from "@/shared/database";
 
 export type BenchmarkResult = {
   time: string | null;
@@ -54,14 +54,14 @@ export const useBenchmark = () => {
       const platform = Capacitor.getPlatform();
 
       setupMessage.value = "Creating database schema...";
-      await db.schema
+      await rdb.schema
         .createTable("regions")
         .ifNotExists()
         .addColumn("region_id", "integer", (col) => col.primaryKey())
         .addColumn("region_name", "text", (col) => col.notNull())
         .execute();
 
-      await db.schema
+      await rdb.schema
         .createTable("countries")
         .ifNotExists()
         .addColumn("country_id", "integer", (col) => col.primaryKey())
@@ -75,7 +75,7 @@ export const useBenchmark = () => {
         )
         .execute();
 
-      await db.schema
+      await rdb.schema
         .createTable("customers")
         .ifNotExists()
         .addColumn("customer_id", "integer", (col) => col.primaryKey())
@@ -89,7 +89,7 @@ export const useBenchmark = () => {
         )
         .execute();
 
-      await db.schema
+      await rdb.schema
         .createTable("orders")
         .ifNotExists()
         .addColumn("order_id", "integer", (col) => col.primaryKey())
@@ -103,7 +103,7 @@ export const useBenchmark = () => {
         )
         .execute();
 
-      await db.schema
+      await rdb.schema
         .createTable("products")
         .ifNotExists()
         .addColumn("product_id", "integer", (col) => col.primaryKey())
@@ -111,7 +111,7 @@ export const useBenchmark = () => {
         .addColumn("unit_price", "real")
         .execute();
 
-      await db.schema
+      await rdb.schema
         .createTable("order_details")
         .ifNotExists()
         .addColumn("order_detail_id", "integer", (col) =>
@@ -201,7 +201,7 @@ export const useBenchmark = () => {
       await conn.executeSet(sets);
 
       setupMessage.value = "Querying orders to create details...";
-      const orderIds = await db
+      const orderIds = await rdb
         .selectFrom("orders")
         .select("order_id")
         .execute();
@@ -242,7 +242,7 @@ export const useBenchmark = () => {
   async function benchmarkSQLite() {
     const startTime = performance.now();
 
-    const result = await db
+    const result = await rdb
       .selectFrom("customers as c")
       .innerJoin("orders as o", "c.customer_id", "o.customer_id")
       .innerJoin("order_details as od", "o.order_id", "od.order_id")
@@ -301,7 +301,7 @@ export const useBenchmark = () => {
         const request = window.indexedDB.open("benchmarkIDB", 1);
 
         request.onupgradeneeded = (event) => {
-          const db = (event.target as IDBOpenDBRequest).result;
+          const rdb = (event.target as IDBOpenDBRequest).result;
           const stores = [
             "regions",
             "countries",
@@ -311,28 +311,33 @@ export const useBenchmark = () => {
             "order_details",
           ];
 
-          if (!db.objectStoreNames.contains("regions"))
-            db.createObjectStore("regions", { keyPath: "region_id" });
-          if (!db.objectStoreNames.contains("countries"))
-            db.createObjectStore("countries", {
-              keyPath: "country_id",
-            }).createIndex("region_id", "region_id");
-          if (!db.objectStoreNames.contains("customers"))
-            db.createObjectStore("customers", {
-              keyPath: "customer_id",
-            }).createIndex("country_id", "country_id");
-          if (!db.objectStoreNames.contains("orders"))
-            db.createObjectStore("orders", { keyPath: "order_id" }).createIndex(
-              "customer_id",
-              "customer_id",
-            );
-          if (!db.objectStoreNames.contains("products"))
-            db.createObjectStore("products", { keyPath: "product_id" });
-          if (!db.objectStoreNames.contains("order_details"))
-            db.createObjectStore("order_details", {
-              autoIncrement: true,
-              keyPath: "order_detail_id",
-            }).createIndex("order_id", "order_id");
+          if (!rdb.objectStoreNames.contains("regions"))
+            rdb.createObjectStore("regions", { keyPath: "region_id" });
+          if (!rdb.objectStoreNames.contains("countries"))
+            rdb
+              .createObjectStore("countries", {
+                keyPath: "country_id",
+              })
+              .createIndex("region_id", "region_id");
+          if (!rdb.objectStoreNames.contains("customers"))
+            rdb
+              .createObjectStore("customers", {
+                keyPath: "customer_id",
+              })
+              .createIndex("country_id", "country_id");
+          if (!rdb.objectStoreNames.contains("orders"))
+            rdb
+              .createObjectStore("orders", { keyPath: "order_id" })
+              .createIndex("customer_id", "customer_id");
+          if (!rdb.objectStoreNames.contains("products"))
+            rdb.createObjectStore("products", { keyPath: "product_id" });
+          if (!rdb.objectStoreNames.contains("order_details"))
+            rdb
+              .createObjectStore("order_details", {
+                autoIncrement: true,
+                keyPath: "order_detail_id",
+              })
+              .createIndex("order_id", "order_id");
         };
 
         request.onsuccess = async (event) => {
@@ -363,33 +368,27 @@ export const useBenchmark = () => {
               );
               for (let j = 0; j < CONFIG.NUM_COUNTRIES_PER_REGION; j++) {
                 await promisifyRequest(
-                  tx
-                    .objectStore("countries")
-                    .add({
-                      country_id: countryId,
-                      country_name: `Country ${j} of R${i}`,
-                      region_id: regionId,
-                    }),
+                  tx.objectStore("countries").add({
+                    country_id: countryId,
+                    country_name: `Country ${j} of R${i}`,
+                    region_id: regionId,
+                  }),
                 );
                 for (let k = 0; k < CONFIG.NUM_CUSTOMERS_PER_COUNTRY; k++) {
                   await promisifyRequest(
-                    tx
-                      .objectStore("customers")
-                      .add({
-                        customer_id: customerId,
-                        customer_name: `Customer ${k}`,
-                        country_id: countryId,
-                      }),
+                    tx.objectStore("customers").add({
+                      customer_id: customerId,
+                      customer_name: `Customer ${k}`,
+                      country_id: countryId,
+                    }),
                   );
                   for (let l = 0; l < CONFIG.NUM_ORDERS_PER_CUSTOMER; l++) {
                     await promisifyRequest(
-                      tx
-                        .objectStore("orders")
-                        .add({
-                          order_id: orderId,
-                          customer_id: customerId,
-                          order_date: "2025-01",
-                        }),
+                      tx.objectStore("orders").add({
+                        order_id: orderId,
+                        customer_id: customerId,
+                        order_date: "2025-01",
+                      }),
                     );
                     orderId++;
                   }
@@ -402,13 +401,11 @@ export const useBenchmark = () => {
 
             for (let i = 0; i < CONFIG.NUM_PRODUCTS; i++) {
               await promisifyRequest(
-                tx
-                  .objectStore("products")
-                  .add({
-                    product_id: i + 1,
-                    product_name: `Product ${i}`,
-                    unit_price: parseFloat((Math.random() * 100).toFixed(2)),
-                  }),
+                tx.objectStore("products").add({
+                  product_id: i + 1,
+                  product_name: `Product ${i}`,
+                  unit_price: parseFloat((Math.random() * 100).toFixed(2)),
+                }),
               );
             }
 
@@ -420,13 +417,11 @@ export const useBenchmark = () => {
                   Math.floor(Math.random() * CONFIG.NUM_PRODUCTS) + 1;
                 const randomQuantity = Math.floor(Math.random() * 10) + 1;
                 await promisifyRequest(
-                  tx
-                    .objectStore("order_details")
-                    .add({
-                      order_id: order.order_id,
-                      product_id: randomProductId,
-                      quantity: randomQuantity,
-                    }),
+                  tx.objectStore("order_details").add({
+                    order_id: order.order_id,
+                    product_id: randomProductId,
+                    quantity: randomQuantity,
+                  }),
                 );
               }
             }

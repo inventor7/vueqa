@@ -1,6 +1,6 @@
-import { rdb, db } from "@/shared/database";
+import { rdb } from "@/shared/database";
 import type { TaskTable } from "../database/schema";
-import type { NewTask } from "../types";
+import type { NewTask } from "../database/schema";
 
 /**
  * Task Service providing CRUD operations for the reactive demo.
@@ -11,7 +11,7 @@ export const taskService = {
    * Create tasks table if it doesn't exist
    */
   async ensureTableExists() {
-    await db.schema
+    await rdb.schema
       .createTable("tasks")
       .ifNotExists()
       .addColumn("task_id", "integer", (col) =>

@@ -3,58 +3,15 @@ import CapacitorSQLiteKyselyDialect from "capacitor-sqlite-kysely";
 import { CapacitorSQLite, SQLiteConnection } from "@capacitor-community/sqlite";
 import type { Database } from "@/shared/database/global.schema";
 
-/**
- * Base SQLite Connection
- */
-const baseSqlite = new SQLiteConnection(CapacitorSQLite);
-
-/**
- * Proxied SQLite Connection to handle web persistence fragility
- */
-export const sqlite = new Proxy(baseSqlite, {
-  get(target, prop) {
-    const value = (target as any)[prop];
-
-    // Intercept saveToStore to prevent crashes on web
-    if (prop === "saveToStore") {
-      return async (...args: any[]) => {
-        try {
-          return await value.apply(target, args);
-        } catch (err) {
-          console.warn("⚠️ saveToStore failed, attempting recovery...", err);
-          try {
-            // Attempt to re-init connection and retry
-            await initConnection();
-            return await value.apply(target, args);
-          } catch (retryErr) {
-            console.error(
-              "❌ saveToStore failed after retry. Data may not be persisted.",
-              retryErr,
-            );
-            // Don't throw, so the app doesn't crash on optimistic updates
-            return;
-          }
-        }
-      };
-    }
-
-    if (typeof value === "function") {
-      return value.bind(target);
-    }
-    return value;
-  },
-});
+export const sqlite = new SQLiteConnection(CapacitorSQLite);
 
 let _kyselyInstance: Kysely<Database> | null = null;
 
-/**
- * Get or create the Kysely instance
- */
 export function getKyselyInstance(): Kysely<Database> {
   if (!_kyselyInstance) {
     _kyselyInstance = new Kysely<Database>({
       dialect: new CapacitorSQLiteKyselyDialect(sqlite, {
-        name: import.meta.env.VITE_DB_FILENAME || "vueqa.db",
+        name: import.meta.env.VITE_DB_FILENAME || "vueqa",
       }),
     });
   }
@@ -62,34 +19,29 @@ export function getKyselyInstance(): Kysely<Database> {
 }
 
 /**
- * Pre-initialize the database connection (critical for Web/WASM)
- */
-/**
- * Pre-initialize the database connection (critical for Web/WASM)
+ * initialize the database connection
  */
 export async function initConnection() {
-  const dbName = import.meta.env.VITE_DB_FILENAME || "vueqa.db";
+  const dbName = import.meta.env.VITE_DB_FILENAME || "vueqa";
 
-  // Check if connection already exists in the JS wrapper
-  let conn = await sqlite.retrieveConnection(dbName, false);
+  let conn;
+  const isConn = await sqlite.isConnection(dbName, false);
 
-  // If found, ensure it's open
-  if (conn) {
-    const isDBOpen = await conn.isDBOpen();
-    if (!isDBOpen.result) {
-      await conn.open();
-    }
-    return conn;
+  if (isConn.result) {
+    conn = await sqlite.retrieveConnection(dbName, false);
+  } else {
+    conn = await sqlite.createConnection(
+      dbName,
+      false,
+      "no-encryption",
+      1,
+      false,
+    );
   }
 
-  // If not found, create and open it
-  conn = await sqlite.createConnection(
-    dbName,
-    false,
-    "no-encryption",
-    1,
-    false,
-  );
-  await conn.open();
+  const isDBOpen = await conn.isDBOpen();
+  if (!isDBOpen.result) {
+    await conn.open();
+  }
   return conn;
 }

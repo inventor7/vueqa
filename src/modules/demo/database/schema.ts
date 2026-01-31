@@ -42,8 +42,8 @@ export interface OrderDetailTable {
   quantity: number;
 }
 
-// Home Database Schema
-export interface HomeDatabaseSchema {
+// Demo Database Schema
+export interface DemoDatabaseSchema {
   regions: RegionTable;
   countries: CountryTable;
   customers: CustomerTable;

@@ -11,7 +11,6 @@
       fill
       @click="$emit('run-benchmark')"
       :loading="isBenchmarking"
-      :disabled="!isSetupComplete"
     >
       Run Complex Query Benchmark
     </F7Button>

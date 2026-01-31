@@ -1,5 +1,6 @@
 import type { App } from "vue";
 import { notificationService } from "@/shared/services/notifications/notification.service";
+import { Capacitor } from "@capacitor/core";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { FirebaseMessaging } from "@capacitor-firebase/messaging";
 import { f7 } from "framework7-vue";
@@ -17,22 +18,24 @@ export const notificationsPlugin = async (app: App) => {
       },
     );
 
-    await FirebaseMessaging.addListener(
-      "notificationActionPerformed",
-      (event) => {
-        console.log("Push Notification Action:", event);
-      },
-    );
+    if (Capacitor.isNativePlatform()) {
+      await FirebaseMessaging.addListener(
+        "notificationActionPerformed",
+        (event) => {
+          console.log("Push Notification Action:", event);
+        },
+      );
 
-    await FirebaseMessaging.addListener("notificationReceived", (event) => {
-      f7.notification
-        .create({
-          title: event.notification.title || "New Message",
-          text: event.notification.body || "",
-          closeTimeout: 3000,
-          closeButton: true,
-        })
-        .open();
-    });
+      await FirebaseMessaging.addListener("notificationReceived", (event) => {
+        f7.notification
+          .create({
+            title: event.notification.title || "New Message",
+            text: event.notification.body || "",
+            closeTimeout: 3000,
+            closeButton: true,
+          })
+          .open();
+      });
+    }
   }
 };

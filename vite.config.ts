@@ -41,7 +41,7 @@ export default defineConfig({
 
     TurboConsole({
       launchEditor: {
-        specifiedEditor: "antigravity",
+        specifiedEditor: "code",
       },
     }),
     Icons({

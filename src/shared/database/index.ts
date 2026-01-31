@@ -1,23 +1,5 @@
-import { type Kysely } from "kysely";
-import { sqlite, getKyselyInstance, initConnection } from "./kysely";
-import type { Database } from "@/shared/database/global.schema";
+import { sqlite, initConnection } from "./kysely";
 import { type SQLiteDBConnection } from "@capacitor-community/sqlite";
-
-export { sqlite, initConnection };
-
-/**
- * Typed database instance for all Kysely operations.
- */
-export const db = new Proxy({} as Kysely<Database>, {
-  get(target, prop) {
-    const instance = getKyselyInstance();
-    const value = (instance as any)[prop];
-    if (typeof value === "function") {
-      return value.bind(instance);
-    }
-    return value;
-  },
-});
 
 /**
  * Get raw SQLite connection for native operations not supported by Kysely.
@@ -44,7 +26,7 @@ export async function getRawConnection(
   return await sqlite.retrieveConnection(dbName, false);
 }
 
-// Reactive Database Layer
+export { sqlite, initConnection };
 export { rdb, executeWithEvent } from "./reactive/reactiveDb";
 export {
   emitTableChange,
