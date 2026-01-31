@@ -45,7 +45,6 @@ class DatabaseService {
   private initializing = false;
 
   private constructor() {
-    // Private constructor for singleton
   }
 
   /**
@@ -67,7 +66,6 @@ class DatabaseService {
    * @throws Error if initialization fails
    */
   public async init(): Promise<Kysely<Database>> {
-    // Prevent double initialization
     if (this.initialized && this.db) {
       console.log(
         "[DatabaseService] Already initialized, returning existing instance",
@@ -75,10 +73,8 @@ class DatabaseService {
       return this.db;
     }
 
-    // Prevent concurrent initialization
     if (this.initializing) {
       console.log("[DatabaseService] Initialization in progress, waiting...");
-      // Wait for initialization to complete
       while (this.initializing) {
         await new Promise((resolve) => setTimeout(resolve, 50));
       }
@@ -199,10 +195,6 @@ class DatabaseService {
     this.initialized = false;
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Reactive Helpers
-  // ─────────────────────────────────────────────────────────────────────────────
-
   /**
    * Execute a mutation and emit a table change event.
    *
@@ -225,10 +217,6 @@ class DatabaseService {
     emitTableChange(table, changeType);
     return result;
   }
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Private Methods
-  // ─────────────────────────────────────────────────────────────────────────────
 
   private async createConnection(): Promise<SQLiteDBConnection> {
     const dbName = import.meta.env.VITE_DB_FILENAME || "vueqa";

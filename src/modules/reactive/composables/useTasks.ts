@@ -20,7 +20,6 @@ export function useTasks() {
 
   logStore.addLog("query", "📦 useTasks composable initialized");
 
-  // reactive query that auto-refetches when 'tasks' table changes
   const {
     data: tasks,
     loading,
@@ -31,11 +30,10 @@ export function useTasks() {
       logStore.addLog("query", "🔍 Executing SELECT * FROM tasks...");
       const startTime = performance.now();
 
-      // Only fetch non-deleted tasks
       const result = await rdb
         .selectFrom("tasks")
         .selectAll()
-        .where("_delete_date", "is", null) // Filter out soft-deleted
+        .where("_delete_date", "is", null)
         .orderBy("created_at", "desc")
         .execute();
 

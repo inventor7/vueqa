@@ -14,7 +14,6 @@ import { addBaseColumns, nowISO } from "../_helpers";
 export async function up(db: Kysely<any>): Promise<void> {
   console.log("[Migration 001] Creating demo schema...");
 
-  // Tasks table - demonstrates a syncable entity
   await (
     await addBaseColumns(db, "tasks")
   )

@@ -20,10 +20,6 @@
 import { dbService } from "./DatabaseService";
 import type { SQLiteDBConnection } from "@capacitor-community/sqlite";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Main Service
-// ─────────────────────────────────────────────────────────────────────────────
-
 export { dbService, DatabaseService, sqlite } from "./DatabaseService";
 
 /**
@@ -42,11 +38,6 @@ export async function initConnection() {
   return await dbService.init();
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Reactive Utilities
-// For building auto-refreshing UIs
-// ─────────────────────────────────────────────────────────────────────────────
-
 export { rdb, executeWithEvent } from "./reactive/reactiveDb";
 export {
   emitTableChange,
@@ -54,10 +45,6 @@ export {
   onTableChange,
   onAnyChange,
 } from "./reactive/dbEvents";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────────────────────────────────
 
 export type {
   TableChangeEvent,
@@ -68,10 +55,6 @@ export type {
 
 export type { Database } from "./global.schema";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Migration Helpers (for creating migrations)
-// ─────────────────────────────────────────────────────────────────────────────
-
 export {
   addBaseColumns,
   addLocalColumns,
@@ -79,9 +62,5 @@ export {
   nowISO,
   type SyncStatus,
 } from "./migrations/_helpers";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Migrator (for advanced use)
-// ─────────────────────────────────────────────────────────────────────────────
 
 export { DatabaseMigrator, type MigrationResult } from "./migrator";

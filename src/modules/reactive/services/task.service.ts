@@ -40,7 +40,7 @@ export const taskService = {
         _ruid: generateLocalRuid(),
         _create_date: now,
         _write_date: now,
-        _sync_status: "to_create", // Mark for sync
+        _sync_status: "to_create",
         created_at: now,
       })
       .execute();
@@ -55,7 +55,7 @@ export const taskService = {
       .set({
         completed: completed ? 1 : 0,
         _write_date: nowISO(),
-        _sync_status: "to_update", // Mark for sync
+        _sync_status: "to_update",
       })
       .where("id", "=", id)
       .execute();

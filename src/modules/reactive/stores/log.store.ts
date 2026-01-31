@@ -40,12 +40,10 @@ export const useLogStore = defineStore("reactiveLogs", () => {
       message,
     });
 
-    // Keep only last 100 logs
     if (logs.value.length > 100) {
       logs.value = logs.value.slice(0, 100);
     }
 
-    // Also mirrored to console for convenience
     console.log(`[${type.toUpperCase()}] ${time} - ${message}`);
   }
 

@@ -15,7 +15,6 @@ class DatabaseMigrationProvider implements MigrationProvider {
   async getMigrations(): Promise<Record<string, Migration>> {
     const migrations: Record<string, Migration> = {};
 
-    // Pattern 1: File-based migrations (XXX_name.ts)
     const fileMigrations = import.meta.glob<{
       up: Migration["up"];
       down: Migration["down"];
@@ -24,7 +23,6 @@ class DatabaseMigrationProvider implements MigrationProvider {
     for (const [path, module] of Object.entries(fileMigrations)) {
       const fileName = path.split("/").pop()?.replace(".ts", "") ?? "";
 
-      // Skip helper files and templates
       if (fileName.startsWith("_") || fileName.startsWith("000_")) {
         continue;
       }
@@ -42,18 +40,15 @@ class DatabaseMigrationProvider implements MigrationProvider {
       };
     }
 
-    // Pattern 2: Folder-based migrations (XXX_name/index.ts) - RECOMMENDED
     const folderMigrations = import.meta.glob<{
       up: Migration["up"];
       down: Migration["down"];
     }>("./migrations/*/index.ts", { eager: true });
 
     for (const [path, module] of Object.entries(folderMigrations)) {
-      // Extract folder name: "./migrations/001_demo_schema/index.ts" -> "001_demo_schema"
       const parts = path.split("/");
       const folderName = parts[parts.length - 2] ?? "";
 
-      // Skip templates (000_)
       if (!folderName || folderName.startsWith("000_")) {
         continue;
       }
@@ -65,7 +60,6 @@ class DatabaseMigrationProvider implements MigrationProvider {
         continue;
       }
 
-      // Check for naming conflicts
       if (migrations[folderName]) {
         console.error(
           `[Migrator] Error: Migration name conflict: ${folderName} exists as both file and folder`,
@@ -79,7 +73,6 @@ class DatabaseMigrationProvider implements MigrationProvider {
       };
     }
 
-    // Log discovered migrations
     const migrationNames = Object.keys(migrations).sort();
     if (migrationNames.length > 0) {
       console.log(
@@ -152,7 +145,6 @@ export class DatabaseMigrator {
         return { success: true, results: [] };
       }
 
-      // Log migration results
       const successCount = results.filter((r) => r.status === "Success").length;
       const errorCount = results.filter((r) => r.status === "Error").length;
 

@@ -15,7 +15,6 @@ export async function initReactiveDemo() {
     if (existingTasks.length === 0) {
       const now = nowISO();
 
-      // Insert sample tasks
       await rdb
         .insertInto("tasks")
         .values([

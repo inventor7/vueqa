@@ -75,7 +75,6 @@ export async function addLocalColumns(
  */
 export function generateLocalRuid(): string {
   const uuid = crypto.randomUUID();
-  // Prefix with "local-" to clearly identify unsynced records
   return `local-${uuid}`;
 }
 

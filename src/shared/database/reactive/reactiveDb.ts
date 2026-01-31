@@ -18,8 +18,6 @@ import { dbService } from "@/shared/database/DatabaseService";
  * This is safe because rdb is only used after dbService.init() is called.
  */
 function getDbSync(): Kysely<Database> {
-  // Direct access to the singleton
-  // Throws if init() hasn't been called yet
   return dbService.getDb();
 }
 
@@ -56,7 +54,6 @@ function wrapExecutor<T>(
   return async () => {
     const result = await executor();
 
-    // Emit change event after successful execution
     emitTableChange(table, changeType, {
       affectedRows: Array.isArray(result) ? result.length : 1,
     });
@@ -77,7 +74,6 @@ function wrapBuilder(builder: any, table: string, changeType: ChangeType): any {
         return value;
       }
 
-      // Intercept execution methods to emit events
       if (
         prop === "execute" ||
         prop === "executeTakeFirst" ||
@@ -86,12 +82,9 @@ function wrapBuilder(builder: any, table: string, changeType: ChangeType): any {
         return wrapExecutor(value.bind(target), table, changeType);
       }
 
-      // For other methods (like .values(), .where(), .set()),
-      // wrap the returned builder recursively
       return (...args: any[]) => {
         const result = value.apply(target, args);
 
-        // If it returns a new builder-like object, wrap it
         if (
           result &&
           typeof result.execute === "function" &&
@@ -134,10 +127,9 @@ function wrapBuilder(builder: any, table: string, changeType: ChangeType): any {
  */
 export const rdb = new Proxy({} as Kysely<Database>, {
   get(target, prop) {
-    const db = getDbSync(); // Lazy load via dbService
+    const db = getDbSync();
     const value = (db as any)[prop];
 
-    // Only intercept mutation methods
     if (
       prop === "insertInto" ||
       prop === "updateTable" ||
@@ -158,7 +150,6 @@ export const rdb = new Proxy({} as Kysely<Database>, {
       };
     }
 
-    // For transaction, we emit a 'bulk' event at the end
     if (prop === "transaction") {
       return () => {
         const txBuilder = value.apply(db, []);
@@ -167,8 +158,6 @@ export const rdb = new Proxy({} as Kysely<Database>, {
           execute: async (callback: any) => {
             const result = await txBuilder.execute(callback);
 
-            // Emit a generic bulk change event
-            // (components watching specific tables will re-fetch)
             emitTableChange("*", "bulk");
 
             return result;
@@ -177,7 +166,6 @@ export const rdb = new Proxy({} as Kysely<Database>, {
       };
     }
 
-    // Pass through everything else unchanged (SELECT queries, schema, etc.)
     if (typeof value === "function") {
       return value.bind(db);
     }

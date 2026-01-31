@@ -4,7 +4,6 @@ const routes: Router.RouteParameters[] = [
   {
     name: "reactive-demo",
     path: "/reactive-demo",
-    // beforeEnter: (context) => useAuthGuard(context),
 
     async({ resolve }) {
       import("@/modules/reactive/views/ReactiveDemo.vue").then((vc) => {

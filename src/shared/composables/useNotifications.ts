@@ -1,6 +1,6 @@
 import { f7 } from "framework7-vue";
 import { notificationService } from "@/shared/services/notifications/notification.service";
-import { useSettingsStore } from "@/modules/settings/stores/settings.store"; // To check if enabled
+import { useSettingsStore } from "@/modules/settings/stores/settings.store";
 
 export interface NotificationOptions {
   title?: string;
@@ -8,8 +8,8 @@ export interface NotificationOptions {
   body: string;
   type?: "success" | "warning" | "error" | "info";
   icon?: string;
-  forceSystem?: boolean; // Force system notification even if app is open
-  schedule?: Date; // If present, schedules a local notification
+  forceSystem?: boolean;
+  schedule?: Date;
   data?: any;
 }
 
@@ -33,11 +33,6 @@ export function useNotifications() {
       return;
     }
 
-    // 3. Handle Immediate Notifications
-    // If scheduling is not requested, we decide based on app state (or forceSystem flag)
-    // Since this is a composable running in Vue context, we assume the app is "open"
-    // unless called from a background listener (which is clearer to handle explicitly).
-
     if (options.forceSystem) {
       await notificationService.scheduleLocal({
         title: options.title || "Notification",
@@ -47,7 +42,6 @@ export function useNotifications() {
       return;
     }
 
-    // 4. Default: In-App Framework7 Notification
     const icon = options.icon || getIconForType(options.type);
 
     f7.notification
