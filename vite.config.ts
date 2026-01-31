@@ -39,11 +39,7 @@ export default defineConfig({
 
     tailwindcss(),
 
-    TurboConsole({
-      launchEditor: {
-        specifiedEditor: "code",
-      },
-    }),
+    TurboConsole(),
     Icons({
       autoInstall: true,
       compiler: "vue3",

@@ -1,41 +1,87 @@
-import { sqlite, initConnection } from "./kysely";
-import { type SQLiteDBConnection } from "@capacitor-community/sqlite";
-
 /**
- * Get raw SQLite connection for native operations not supported by Kysely.
+ * Database Module
  *
- * Use this for:
- * - `executeSet()` for high-performance bulk inserts
- * - Native SQLite features (e.g., PRAGMA, ATTACH DATABASE)
- * - Raw SQL when needed
- *
- * @param dbName - Database name (default: import.meta.env.VITE_DB_FILENAME)
+ * Central export point for all database functionality.
+ * This is the ONLY file you should import from outside the database module.
  *
  * @example
  * ```ts
- * const conn = await getRawConnection();
- * await conn.executeSet([{
- *   statement: "INSERT INTO users (name) VALUES (?)",
- *   values: [["Alice"], ["Bob"], ["Charlie"]]
- * }]);
+ * import { dbService } from "@/shared/database";
+ *
+ * // Initialize (call once at app startup)
+ * await dbService.init();
+ *
+ * // Use throughout your app
+ * const db = dbService.getDb();
+ * const tasks = await db.selectFrom("tasks").selectAll().execute();
  * ```
  */
-export async function getRawConnection(
-  dbName: string = import.meta.env.VITE_DB_FILENAME,
-): Promise<SQLiteDBConnection> {
-  return await sqlite.retrieveConnection(dbName, false);
+
+import { dbService } from "./DatabaseService";
+import type { SQLiteDBConnection } from "@capacitor-community/sqlite";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main Service
+// ─────────────────────────────────────────────────────────────────────────────
+
+export { dbService, DatabaseService, sqlite } from "./DatabaseService";
+
+/**
+ * Helper to get the raw SQLite connection.
+ * Wrapper around dbService.getRawConnection() for convenience.
+ */
+export async function getRawConnection(): Promise<SQLiteDBConnection> {
+  return dbService.getRawConnection();
 }
 
-export { sqlite, initConnection };
+/**
+ * Initialize the database.
+ * Wrapper around dbService.init() for convenience and backward compatibility.
+ */
+export async function initConnection() {
+  return await dbService.init();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Reactive Utilities
+// For building auto-refreshing UIs
+// ─────────────────────────────────────────────────────────────────────────────
+
 export { rdb, executeWithEvent } from "./reactive/reactiveDb";
 export {
   emitTableChange,
+  batchEmit,
   onTableChange,
   onAnyChange,
 } from "./reactive/dbEvents";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
+
 export type {
   TableChangeEvent,
   ChangeType,
   ReactiveQueryOptions,
   OptimisticMutationOptions,
 } from "./reactive/types";
+
+export type { Database } from "./global.schema";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Migration Helpers (for creating migrations)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export {
+  addBaseColumns,
+  addLocalColumns,
+  generateLocalRuid,
+  nowISO,
+  type SyncStatus,
+} from "./migrations/_helpers";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Migrator (for advanced use)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export { DatabaseMigrator, type MigrationResult } from "./migrator";

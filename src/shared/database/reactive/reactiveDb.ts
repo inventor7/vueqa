@@ -7,11 +7,21 @@
  */
 
 import { type Kysely } from "kysely";
-import { getKyselyInstance } from "../kysely";
-import { sqlite } from "@/shared/database";
 import type { Database } from "@/shared/database/global.schema";
 import { emitTableChange } from "./dbEvents";
 import type { ChangeType } from "./types";
+
+import { dbService } from "@/shared/database/DatabaseService";
+
+/**
+ * Synchronous getter that assumes dbService is already loaded.
+ * This is safe because rdb is only used after dbService.init() is called.
+ */
+function getDbSync(): Kysely<Database> {
+  // Direct access to the singleton
+  // Throws if init() hasn't been called yet
+  return dbService.getDb();
+}
 
 /**
  * Extract table name from Kysely query builder
@@ -124,7 +134,7 @@ function wrapBuilder(builder: any, table: string, changeType: ChangeType): any {
  */
 export const rdb = new Proxy({} as Kysely<Database>, {
   get(target, prop) {
-    const db = getKyselyInstance(); // Lazy load
+    const db = getDbSync(); // Lazy load via dbService
     const value = (db as any)[prop];
 
     // Only intercept mutation methods

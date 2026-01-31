@@ -24,6 +24,7 @@ export interface TableChangeEvent {
   affectedRows?: number;
   /** Optional: Specific IDs affected (for granular updates) */
   affectedIds?: (string | number)[];
+  transactionId?: string;
 }
 
 /**
@@ -37,15 +38,71 @@ export type DatabaseEvents = {
 };
 
 /**
- * Options for reactive queries
+ * Options for reactive queries.
+ *
+ * @typeParam T - The expected return type of the query
+ *
+ * @example Basic usage
+ * ```typescript
+ * const options: ReactiveQueryOptions<Task[]> = {
+ *   tables: ['tasks'],
+ *   refetchOn: ['insert', 'delete'],
+ * };
+ * ```
+ *
+ * @example With queryKey (explicit deduplication)
+ * ```typescript
+ * // queryKey Strategy:
+ * // - Auto-generated from tables: "tasks,users" (may cause false positives)
+ * // - Use explicit queryKey for unique queries on same tables
+ * const options: ReactiveQueryOptions<Task[]> = {
+ *   tables: ['tasks'],
+ *   queryKey: 'pending-tasks', // Unique key for THIS specific query
+ * };
+ * ```
+ *
+ * @example Complex shouldRefetch scenarios
+ * ```typescript
+ * // Scenario 1: Only refetch if specific IDs changed
+ * shouldRefetch: (event) => {
+ *   if (!event.affectedIds) return true;
+ *   return event.affectedIds.some(id => visibleIds.includes(id));
+ * }
+ *
+ * // Scenario 2: Skip refetch during bulk transactions
+ * shouldRefetch: (event) => event.type !== 'bulk'
+ *
+ * // Scenario 3: Only refetch for specific user's changes
+ * shouldRefetch: (event) => {
+ *   return event.affectedIds?.includes(currentUserId) ?? true;
+ * }
+ * ```
  */
-export interface ReactiveQueryOptions {
-  /** Tables to watch for changes */
+export interface ReactiveQueryOptions<T = unknown> {
+  /**
+   * Tables to listen to for changes.
+   */
   tables: string[];
-  /** Debounce interval in ms (default: 100) */
+  /**
+   * Unique key for request deduplication.
+   * Auto-generated from `tables.join(',')` if not provided.
+   */
+  queryKey?: string;
   debounce?: number;
-  /** Enable logging for debugging */
   debug?: boolean;
+  refetchOn?: ChangeType[];
+  shouldRefetch?: (event: TableChangeEvent) => boolean;
+  cacheTime?: number;
+  staleWhileRevalidate?: boolean;
+  enabled?: boolean;
+  onSuccess?: (data: T) => void;
+  onError?: (error: Error) => void;
+  /** Cancel in-flight query on component unmount (default: true) */
+  cancelOnUnmount?: boolean;
+  /** Number of retries on failure (default: 0) */
+  retry?: number | false;
+  /** Retry delay in ms, or function for custom backoff (default: exponential) */
+  retryDelay?: number | ((attempt: number) => number);
 }
 
 /**

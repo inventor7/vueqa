@@ -6,7 +6,7 @@
  */
 
 import { computed } from "vue";
-import { rdb } from "@/shared/database";
+import { rdb, generateLocalRuid, nowISO } from "@/shared/database";
 import { useReactiveQuery } from "@/shared/composables/useReactiveQuery";
 import { useOptimisticMutation } from "@/shared/composables/useOptimisticMutation";
 import type { Task, NewTask } from "../database/schema";
@@ -31,9 +31,11 @@ export function useTasks() {
       logStore.addLog("query", "🔍 Executing SELECT * FROM tasks...");
       const startTime = performance.now();
 
+      // Only fetch non-deleted tasks
       const result = await rdb
         .selectFrom("tasks")
         .selectAll()
+        .where("_delete_date", "is", null) // Filter out soft-deleted
         .orderBy("created_at", "desc")
         .execute();
 
@@ -47,6 +49,7 @@ export function useTasks() {
     },
     {
       tables: ["tasks"],
+      refetchOn: ["insert", "delete"],
       debounce: 100,
       debug: false,
     },
@@ -63,7 +66,7 @@ export function useTasks() {
 
   // Optimistic mutation: Add task
   const { mutate: addTaskAction, loading: isAdding } = useOptimisticMutation<
-    NewTask,
+    Omit<NewTask, "_ruid" | "_create_date" | "_write_date" | "_sync_status">,
     any
   >({
     table: "tasks",
@@ -73,13 +76,19 @@ export function useTasks() {
         `⚡ OPTIMISTIC: Adding task "${taskData.title}" to UI immediately`,
       );
 
+      const now = nowISO();
       const optimisticTask: Task = {
-        task_id: -Date.now(), // Temporary ID
+        id: -Date.now(), // Temporary ID
+        _ruid: `temp-${Date.now()}`,
         title: taskData.title,
         description: taskData.description ?? null,
         completed: 0,
-        priority: taskData.priority,
-        created_at: new Date().toISOString(),
+        priority: taskData.priority ?? "medium",
+        created_at: now,
+        _create_date: now,
+        _write_date: now,
+        _delete_date: null,
+        _sync_status: "to_create",
       };
 
       if (tasks.value) {
@@ -91,12 +100,17 @@ export function useTasks() {
     mutation: async (taskData) => {
       logStore.addLog("mutation", `💾 DATABASE: Inserting task into SQLite...`);
       const startTime = performance.now();
+      const now = nowISO();
 
       const result = await rdb
         .insertInto("tasks")
         .values({
           ...taskData,
-          created_at: new Date().toISOString(),
+          _ruid: generateLocalRuid(),
+          _create_date: now,
+          _write_date: now,
+          _sync_status: "to_create",
+          created_at: now,
         })
         .executeTakeFirst();
 
@@ -118,7 +132,6 @@ export function useTasks() {
         "mutation",
         `🔄 ROLLBACK: Reverting optimistic update...`,
       );
-      // We rely on the auto-refetch or manual refetch to clean up
       innerRefetch();
     },
     onSuccess: () => {
@@ -131,7 +144,7 @@ export function useTasks() {
     useOptimisticMutation<number, any>({
       table: "tasks",
       optimisticUpdate: (taskId) => {
-        const task = tasks.value?.find((t) => t.task_id === taskId);
+        const task = tasks.value?.find((t) => t.id === taskId);
         if (task) {
           const newStatus = task.completed === 1 ? "pending" : "completed";
           logStore.addLog(
@@ -141,7 +154,7 @@ export function useTasks() {
 
           if (tasks.value) {
             tasks.value = tasks.value.map((t) =>
-              t.task_id === taskId
+              t.id === taskId
                 ? { ...t, completed: t.completed === 1 ? 0 : 1 }
                 : t,
             );
@@ -149,18 +162,22 @@ export function useTasks() {
         }
       },
       mutation: async (taskId) => {
-        const task = tasks.value?.find((t) => t.task_id === taskId);
-        const newCompleted = task?.completed === 1 ? 0 : 1;
+        const task = tasks.value?.find((t) => t.id === taskId);
+        const newCompleted = task?.completed === 1 ? 1 : 0;
 
         logStore.addLog(
           "mutation",
-          `💾 DATABASE: UPDATE tasks SET completed=${newCompleted} WHERE task_id=${taskId}`,
+          `💾 DATABASE: UPDATE tasks SET completed=${newCompleted} WHERE id=${taskId}`,
         );
 
         return await rdb
           .updateTable("tasks")
-          .set({ completed: newCompleted })
-          .where("task_id", "=", taskId)
+          .set({
+            completed: newCompleted,
+            _write_date: nowISO(),
+            _sync_status: "to_update",
+          })
+          .where("id", "=", taskId)
           .execute();
       },
       onError: (rollback) => {
@@ -169,7 +186,7 @@ export function useTasks() {
       },
     });
 
-  // Optimistic mutation: Delete task
+  // Optimistic mutation: Delete task (Soft Delete)
   const { mutate: deleteTaskAction, loading: isDeleting } =
     useOptimisticMutation<number, any>({
       table: "tasks",
@@ -180,19 +197,17 @@ export function useTasks() {
         );
 
         if (tasks.value) {
-          tasks.value = tasks.value.filter((t) => t.task_id !== taskId);
+          tasks.value = tasks.value.filter((t) => t.id !== taskId);
         }
       },
       mutation: async (taskId) => {
         logStore.addLog(
           "mutation",
-          `💾 DATABASE: DELETE FROM tasks WHERE task_id=${taskId}`,
+          `💾 DATABASE: DELETE FROM tasks WHERE id=${taskId}`,
         );
 
-        return await rdb
-          .deleteFrom("tasks")
-          .where("task_id", "=", taskId)
-          .execute();
+        // Hard delete: actually remove from table to trigger 'delete' event
+        return await rdb.deleteFrom("tasks").where("id", "=", taskId).execute();
       },
       onError: (rollback) => {
         logStore.addLog("mutation", `❌ Delete failed, rolling back...`);
@@ -200,32 +215,71 @@ export function useTasks() {
       },
     });
 
-  /**
-   * Manual refetch wrapper
-   */
-  async function manualRefetch() {
-    logStore.addLog("refetch", `🔄 MANUAL REFETCH triggered by user`);
+  // Optimistic mutation: Update task details
+  const { mutate: updateTaskAction, loading: isUpdating } =
+    useOptimisticMutation<
+      {
+        id: number;
+        updates: Partial<
+          Omit<
+            NewTask,
+            "id" | "_ruid" | "_create_date" | "_write_date" | "_sync_status"
+          >
+        >;
+      },
+      any
+    >({
+      table: "tasks",
+      optimisticUpdate: ({ id, updates }) => {
+        logStore.addLog(
+          "mutation",
+          `⚡ OPTIMISTIC: Updating task #${id} details`,
+        );
+        if (tasks.value) {
+          tasks.value = tasks.value.map((t) =>
+            t.id === id ? { ...t, ...updates } : t,
+          );
+        }
+      },
+      mutation: async ({ id, updates }) => {
+        logStore.addLog("mutation", `💾 DATABASE: Updating task #${id}...`);
+        const now = nowISO();
+        return await rdb
+          .updateTable("tasks")
+          .set({
+            ...updates,
+            _write_date: now,
+            _sync_status: "to_update",
+          })
+          .where("id", "=", id)
+          .execute();
+      },
+      onError: () => {
+        logStore.addLog("mutation", `❌ Update failed, rolling back...`);
+        innerRefetch();
+      },
+    });
+
+  // Manual refetch exposed to UI
+  const refetchTasks = async () => {
+    logStore.addLog("refetch", "🔄 Manual refetch requested");
     await innerRefetch();
-  }
+  };
 
   return {
-    // Data
     tasks,
     totalTasks,
     completedTasks,
     pendingTasks,
-
-    // State
     loading,
     error,
+    addTask: addTaskAction,
+    updateTask: updateTaskAction,
+    toggleTask: toggleTaskAction,
+    deleteTask: deleteTaskAction,
+    refetch: refetchTasks,
     isAdding,
     isToggling,
     isDeleting,
-
-    // Actions
-    addTask: addTaskAction,
-    toggleTask: toggleTaskAction,
-    deleteTask: deleteTaskAction,
-    refetch: manualRefetch,
   };
 }

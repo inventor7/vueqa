@@ -31,6 +31,7 @@ export function emitTableChange(
   options?: {
     affectedRows?: number;
     affectedIds?: (string | number)[];
+    transactionId?: string;
   },
 ): void {
   const event: TableChangeEvent = {
@@ -40,18 +41,71 @@ export function emitTableChange(
     ...options,
   };
 
-  // Emit specific event: "tableName:changeType"
   const specificEvent = `${table}:${type}`;
   emitter.emit(specificEvent, event);
-
-  // Emit table-level event: "tableName"
   emitter.emit(table, event);
-
-  // Emit wildcard event for global listeners
   emitter.emit("*", event);
 
-  // Debug logging in development
-  console.log(`[DB Event] ${table}.${type}`, event);
+  if (import.meta.env.DEV) {
+    console.log(`[DB Event] ${table}.${type}`, event);
+  }
+}
+
+let batchQueue: Array<{
+  table: string;
+  type: ChangeType;
+  ids?: (string | number)[];
+}> = [];
+let batchTimer: ReturnType<typeof setTimeout> | null = null;
+const BATCH_DELAY = 10;
+
+/**
+ * Batch multiple changes into a single bulk event.
+ * Use this for bulk operations to prevent N refetches.
+ */
+export function batchEmit(
+  table: string,
+  type: ChangeType,
+  affectedIds?: (string | number)[],
+): void {
+  batchQueue.push({ table, type, ids: affectedIds });
+
+  if (!batchTimer) {
+    batchTimer = setTimeout(() => {
+      flushBatch();
+    }, BATCH_DELAY);
+  }
+}
+
+function flushBatch(): void {
+  if (batchQueue.length === 0) return;
+
+  const transactionId = `tx-${Date.now()}`;
+  const tableGroups = new Map<
+    string,
+    { types: Set<ChangeType>; ids: (string | number)[] }
+  >();
+
+  for (const item of batchQueue) {
+    if (!tableGroups.has(item.table)) {
+      tableGroups.set(item.table, { types: new Set(), ids: [] });
+    }
+    const group = tableGroups.get(item.table)!;
+    group.types.add(item.type);
+    if (item.ids) group.ids.push(...item.ids);
+  }
+
+  for (const [table, group] of tableGroups) {
+    emitTableChange(table, "bulk", {
+      affectedRows:
+        group.ids.length || batchQueue.filter((q) => q.table === table).length,
+      affectedIds: group.ids.length > 0 ? group.ids : undefined,
+      transactionId,
+    });
+  }
+
+  batchQueue = [];
+  batchTimer = null;
 }
 
 /**
