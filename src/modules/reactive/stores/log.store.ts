@@ -1,6 +1,3 @@
-import { defineStore } from "pinia";
-import { ref } from "vue";
-
 export type LogType = "query" | "mutation" | "event" | "refetch";
 
 export interface ReactiveLog {

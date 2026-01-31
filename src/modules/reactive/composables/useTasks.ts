@@ -5,13 +5,6 @@
  * following the "Big Dog" modular architecture.
  */
 
-import { computed } from "vue";
-import { rdb, generateLocalRuid, nowISO } from "@/shared/database";
-import { useReactiveQuery } from "@/shared/composables/useReactiveQuery";
-import { useOptimisticMutation } from "@/shared/composables/useOptimisticMutation";
-import type { Task, NewTask } from "../database/schema";
-import { useLogStore } from "../stores/log.store";
-
 /**
  * Reactive tasks composable with full CRUD and logging
  */

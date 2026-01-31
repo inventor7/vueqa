@@ -86,6 +86,7 @@ export default defineConfig({
         "src/views/**/**",
         "src/modules/**/views/**/**/**",
         "src/modules/**/components/**/**/**",
+        "src/shared/components/**/**/**",
       ],
       extensions: ["vue", "ts", "tsx"],
       deep: true,

@@ -260,18 +260,6 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick, onMounted } from "vue";
-import { useTasks } from "../composables/useTasks";
-import { useLogStore } from "../stores/log.store";
-import {
-  executeWithEvent,
-  getRawConnection,
-  generateLocalRuid,
-  nowISO,
-} from "@/shared/database";
-import MetricsDevTools from "@/shared/components/MetricsDevTools.vue";
-import { useQueryMetrics } from "@/shared/composables/useQueryMetrics";
-
 const { toggleDevTools } = useQueryMetrics();
 const logStore = useLogStore();
 const {
@@ -288,7 +276,6 @@ const {
   refetch,
 } = useTasks();
 
-// Task Detail Sheet Logic
 const isTaskSheetOpen = ref(false);
 const editingTask = ref<{
   id: number;

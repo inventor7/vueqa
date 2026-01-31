@@ -2,9 +2,6 @@
  * Query performance metrics tracking.
  * Provides visibility into query execution times, cache hits, and refetch rates.
  */
-
-import { reactive, computed } from "vue";
-
 interface QueryMetric {
   count: number;
   totalTime: number;
