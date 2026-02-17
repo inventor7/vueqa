@@ -111,11 +111,30 @@ export interface ReactiveQueryOptions<T = unknown> {
 export interface OptimisticMutationOptions<T, R> {
   /** Table name being mutated */
   table: string;
-  /** Function to optimistically update local state */
+  /**
+   * Function to optimistically update local state.
+   * Called immediately before the database mutation.
+   */
   optimisticUpdate: (data: T) => void;
+  /**
+   * Function to capture state snapshot before optimistic update.
+   * Return value will be passed to rollbackFn if mutation fails.
+   * If not provided, you must implement rollback logic in onError.
+   */
+  snapshotFn?: () => unknown;
+  /**
+   * Function to restore state from snapshot.
+   * Called automatically on error if provided.
+   * @param snapshot - The value returned by snapshotFn
+   */
+  rollbackFn?: (snapshot: unknown) => void;
   /** Actual database mutation to perform */
   mutation: (data: T) => Promise<R>;
-  /** Rollback function called on error */
+  /**
+   * Error handler called when mutation fails.
+   * If snapshotFn/rollbackFn are provided, rollback is automatic.
+   * Otherwise, implement rollback logic here using the rollback callback.
+   */
   onError?: (rollback: () => void, error: unknown) => void;
   /** Success callback */
   onSuccess?: (result: R) => void;

@@ -17,6 +17,12 @@ const DEFAULT_RETRY_BASE = 1000;
 
 const inFlightQueries = new Map<string, Promise<unknown>>();
 
+/**
+ * Auto-incrementing counter to ensure unique query keys when not explicitly provided.
+ * This prevents deduplication collisions for different queries on the same tables.
+ */
+let queryIdCounter = 0;
+
 function getRetryDelay(
   attempt: number,
   retryDelay?: number | ((attempt: number) => number),
@@ -41,7 +47,17 @@ export function useReactiveQuery<T>(
   let abortController: AbortController | null = null;
   const debounceMs = options.debounce ?? DEFAULT_DEBOUNCE;
   const enabled = options.enabled !== false;
-  const queryKey = options.queryKey ?? options.tables.join(",");
+
+  /**
+   * Generate unique queryKey:
+   * - If explicitly provided: use it (allows manual deduplication)
+   * - Otherwise: generate unique key to prevent false deduplication
+   *
+   * This fixes the collision issue where multiple queries on the same tables
+   * would incorrectly share results.
+   */
+  const queryKey = options.queryKey ?? `${options.tables.join(",")}:${++queryIdCounter}`;
+
   const cancelOnUnmount = options.cancelOnUnmount !== false;
   const maxRetries = options.retry === false ? 0 : (options.retry ?? 0);
 

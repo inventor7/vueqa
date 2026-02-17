@@ -12,24 +12,30 @@ import type { OptimisticMutationOptions } from "@/shared/database/reactive/types
  * Optimistic update composable
  *
  * Implements the optimistic UI pattern:
- * 1. Apply change to local state immediately
- * 2. Execute database mutation in background
- * 3. On success: do nothing (UI already updated)
- * 4. On failure: rollback local state and notify user
+ * 1. Capture state snapshot (if snapshotFn provided)
+ * 2. Apply change to local state immediately
+ * 3. Execute database mutation in background
+ * 4. On success: do nothing (UI already updated)
+ * 5. On failure: auto-rollback (if rollbackFn provided) and notify user
  *
  * @param options - Configuration for optimistic behavior
  * @returns Mutation function and loading state
  *
- * @example
+ * @example With automatic rollback (recommended)
  * ```ts
- * // Define local state
  * const customers = ref<Customer[]>([]);
  *
- * // Create optimistic mutation
- * const { mutate, loading } = useOptimisticMutation({
+ * const { mutate } = useOptimisticMutation({
  *   table: 'customers',
+ *   // Capture state before update
+ *   snapshotFn: () => [...customers.value],
+ *   // Apply optimistic update
  *   optimisticUpdate: (newCustomer: Customer) => {
  *     customers.value = [...customers.value, newCustomer];
+ *   },
+ *   // Restore from snapshot on error
+ *   rollbackFn: (snapshot) => {
+ *     customers.value = snapshot as Customer[];
  *   },
  *   mutation: async (newCustomer: Customer) => {
  *     return await rdb.insertInto('customers')
@@ -37,18 +43,28 @@ import type { OptimisticMutationOptions } from "@/shared/database/reactive/types
  *       .executeTakeFirst();
  *   },
  *   onError: (rollback, error) => {
- *     rollback(); // Revert the optimistic update
+ *     // Rollback already happened automatically
  *     showNotification('Failed to add customer', 'error');
- *   },
- *   onSuccess: (result) => {
- *     showNotification('Customer added!', 'success');
  *   }
  * });
+ * ```
  *
- * // Use in UI
- * async function addCustomer() {
- *   await mutate({ customer_name: 'Alice', country_id: 1 });
- * }
+ * @example Manual rollback (for complex state)
+ * ```ts
+ * const { mutate } = useOptimisticMutation({
+ *   table: 'customers',
+ *   optimisticUpdate: (newCustomer: Customer) => {
+ *     customers.value = [...customers.value, newCustomer];
+ *   },
+ *   mutation: async (newCustomer: Customer) => {
+ *     return await rdb.insertInto('customers').values(newCustomer).execute();
+ *   },
+ *   onError: (rollback, error) => {
+ *     // Manually revert - you implement the rollback logic
+ *     customers.value = customers.value.slice(0, -1);
+ *     showNotification('Failed', 'error');
+ *   }
+ * });
  * ```
  */
 export function useOptimisticMutation<T, R>(
@@ -67,14 +83,19 @@ export function useOptimisticMutation<T, R>(
     loading.value = true;
     error.value = null;
 
-    // Snapshot for rollback
+    // Capture snapshot before optimistic update (if provided)
+    const snapshot = options.snapshotFn ? options.snapshotFn() : null;
     let rollbackExecuted = false;
+
     const rollback = () => {
       if (!rollbackExecuted) {
-        // The optimisticUpdate should have captured the previous state
-        // Here we just mark that rollback was called
-        // In practice, the onError handler should implement the actual rollback logic
         rollbackExecuted = true;
+
+        // If rollbackFn is provided, call it with the snapshot
+        if (options.rollbackFn && snapshot !== null) {
+          options.rollbackFn(snapshot);
+        }
+        // Otherwise, rollback logic must be in onError handler
       }
     };
 
@@ -95,6 +116,11 @@ export function useOptimisticMutation<T, R>(
     } catch (err) {
       // Step 4: On failure, rollback and notify
       error.value = err instanceof Error ? err : new Error(String(err));
+
+      // Auto-rollback if snapshot/rollback functions provided
+      if (options.snapshotFn && options.rollbackFn) {
+        rollback();
+      }
 
       if (options.onError) {
         options.onError(rollback, err);

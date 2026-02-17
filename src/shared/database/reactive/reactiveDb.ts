@@ -14,33 +14,16 @@ import type { ChangeType } from "./types";
 import { dbService } from "@/shared/database/DatabaseService";
 
 /**
- * Synchronous getter that assumes dbService is already loaded.
- * This is safe because rdb is only used after dbService.init() is called.
+ * Synchronous getter with initialization guard.
+ * Throws a clear error if database is not initialized.
  */
 function getDbSync(): Kysely<Database> {
+  if (!dbService.isReady()) {
+    throw new Error(
+      "[rdb] Database not initialized. Call dbService.init() before using reactive database operations."
+    );
+  }
   return dbService.getDb();
-}
-
-/**
- * Extract table name from Kysely query builder
- * This is a helper to determine which table a query is operating on
- */
-function extractTableName(query: any): string | null {
-  const queryNode = query?.toOperationNode?.();
-
-  if (queryNode?.kind === "InsertQueryNode") {
-    return queryNode.into?.table?.identifier?.name || null;
-  }
-
-  if (queryNode?.kind === "UpdateQueryNode") {
-    return queryNode.table?.table?.identifier?.name || null;
-  }
-
-  if (queryNode?.kind === "DeleteQueryNode") {
-    return queryNode.from?.froms?.[0]?.table?.identifier?.name || null;
-  }
-
-  return null;
 }
 
 /**
@@ -100,6 +83,38 @@ function wrapBuilder(builder: any, table: string, changeType: ChangeType): any {
 }
 
 /**
+ * Create a tracking proxy that collects table names mutated in a transaction
+ */
+function createTrackingProxy(
+  db: Kysely<Database>,
+  touchedTables: Set<string>,
+): Kysely<Database> {
+  return new Proxy(db, {
+    get(target, prop) {
+      const value = (target as any)[prop];
+
+      if (
+        prop === "insertInto" ||
+        prop === "updateTable" ||
+        prop === "deleteFrom"
+      ) {
+        return (...args: any[]) => {
+          const table = args[0] as string;
+          touchedTables.add(table);
+          return value.apply(target, args);
+        };
+      }
+
+      if (typeof value === "function") {
+        return value.bind(target);
+      }
+
+      return value;
+    },
+  }) as Kysely<Database>;
+}
+
+/**
  * Reactive Kysely database instance.
  *
  * Drop-in replacement for `db` that emits change events on mutations.
@@ -156,9 +171,22 @@ export const rdb = new Proxy({} as Kysely<Database>, {
 
         return {
           execute: async (callback: any) => {
-            const result = await txBuilder.execute(callback);
+            const touchedTables = new Set<string>();
 
-            emitTableChange("*", "bulk");
+            const result = await txBuilder.execute((trx: Kysely<Database>) => {
+              const trackedTrx = createTrackingProxy(trx, touchedTables);
+              return callback(trackedTrx);
+            });
+
+            // Emit specific table events instead of wildcard
+            if (touchedTables.size === 0) {
+              // If no tables tracked, fall back to wildcard (for raw SQL in transaction)
+              emitTableChange("*", "bulk");
+            } else {
+              for (const table of touchedTables) {
+                emitTableChange(table, "bulk");
+              }
+            }
 
             return result;
           },
