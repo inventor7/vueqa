@@ -47,7 +47,7 @@ export function useTasks() {
     },
     {
       tables: ["tasks"],
-      refetchOn: ["insert", "delete"],
+      refetchOn: ["insert", "update", "delete", "bulk"],
       debounce: 100,
       debug: false,
     },

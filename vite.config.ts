@@ -83,6 +83,7 @@ export default defineConfig({
       dts: "components.d.ts",
       dirs: [
         "src/components/**",
+        "src/shared/components/**",
         "src/views/**/**",
         "src/modules/**/views/**/**/**",
         "src/modules/**/components/**/**/**",

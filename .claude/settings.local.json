@@ -3,7 +3,8 @@
     "allow": [
       "Bash(pnpm type-check:*)",
       "Bash(pnpm build:dev:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(cd:*)"
     ]
   }
 }
