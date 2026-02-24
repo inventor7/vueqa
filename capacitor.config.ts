@@ -8,7 +8,7 @@ dotenv.config({ path: path.join(__dirname, ".env.local") });
 dotenv.config({ path: path.join(__dirname, ".env") });
 
 const packageJson = JSON.parse(
-  fs.readFileSync(path.join(__dirname, "package.json"), "utf8")
+  fs.readFileSync(path.join(__dirname, "package.json"), "utf8"),
 );
 const appVersion = packageJson.version;
 

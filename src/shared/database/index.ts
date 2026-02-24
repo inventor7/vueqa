@@ -58,9 +58,33 @@ export type { Database } from "./global.schema";
 export {
   addBaseColumns,
   addLocalColumns,
+  createIndex,
   generateLocalRuid,
   nowISO,
   type SyncStatus,
+  type ConflictResolutionStrategy,
 } from "./migrations/_helpers";
 
 export { DatabaseMigrator, type MigrationResult } from "./migrator";
+
+export {
+  registerQueryPlan,
+  explainQueryPlan,
+  analyseAllRegisteredPlans,
+} from "./queryPlan";
+export type { QueryPlanResult, QueryPlanRow } from "./queryPlan";
+
+export { batchInsert, batchUpsert, batchDelete, batchTransaction } from "./sync";
+
+export { DatabasePruner } from "./pruning";
+export type { PruningPolicy, PruningMode, PruningResult } from "./pruning";
+
+export { resolveConflict, resolveBatchConflicts } from "./conflicts";
+export type {
+  ConflictStrategy,
+  ConflictWinner,
+  ConflictInput,
+  ConflictResult,
+} from "./conflicts";
+
+export type { StorageInfo } from "./DatabaseService";

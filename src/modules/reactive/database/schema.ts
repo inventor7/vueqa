@@ -1,5 +1,5 @@
 import type { Generated, Selectable, Insertable, Updateable } from "kysely";
-import type { SyncStatus } from "@/shared/database";
+import type { SyncStatus, ConflictResolutionStrategy } from "@/shared/database";
 
 /**
  * Base columns added by addBaseColumns() helper.
@@ -36,6 +36,17 @@ export interface TaskTable extends BaseSyncColumns {
 export type Task = Selectable<TaskTable>;
 export type NewTask = Insertable<TaskTable>;
 export type TaskUpdate = Updateable<TaskTable>;
+
+/**
+ * Conflict resolution strategy for the tasks table.
+ *
+ * Tasks are user-edited records. The latest write wins:
+ * if the user edited offline and the server also updated, whichever
+ * has the newer `_write_date` is kept.
+ *
+ * Use with `resolveConflict()` from `@/shared/database/conflicts` in your sync service.
+ */
+export const TASK_CONFLICT_STRATEGY: ConflictResolutionStrategy = "latest-write-wins";
 
 /**
  * Reactive Demo Database Schema

@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { useQueryMetrics } from "@/shared/composables/useQueryMetrics";
+import { dbService } from "@/shared/database/DatabaseService";
+import { analyseAllRegisteredPlans } from "@/shared/database/queryPlan";
+import type { QueryPlanResult } from "@/shared/database/queryPlan";
 
 const {
   totalQueries,
@@ -15,6 +18,24 @@ const {
   errors,
   activeListeners,
 } = useQueryMetrics();
+
+const queryPlans = ref<QueryPlanResult[]>([]);
+const isAnalysing = ref(false);
+
+async function runQueryPlanAnalysis() {
+  if (!import.meta.env.DEV || isAnalysing.value) return;
+  isAnalysing.value = true;
+  try {
+    const conn = dbService.getRawConnection();
+    queryPlans.value = await analyseAllRegisteredPlans(conn);
+  } finally {
+    isAnalysing.value = false;
+  }
+}
+
+const scanWarnings = computed(() =>
+  queryPlans.value.filter((p) => p.hasScan),
+);
 
 function formatUptime(ms: number): string {
   const seconds = Math.floor(ms / 1000) % 60;
@@ -130,10 +151,52 @@ function exportMetrics() {
         </F7List>
       </template>
 
+      <!-- Query Plan Analysis — dev only -->
+      <template v-if="queryPlans.length > 0">
+        <F7BlockTitle>
+          Query Plans
+          <F7Badge v-if="scanWarnings.length > 0" color="red" class="ml-2">
+            {{ scanWarnings.length }} SCAN{{ scanWarnings.length > 1 ? 'S' : '' }}
+          </F7Badge>
+        </F7BlockTitle>
+        <F7List strong-ios outline-ios dividers-ios>
+          <F7ListItem
+            v-for="plan in queryPlans"
+            :key="plan.label"
+            :title="plan.label"
+            :footer="plan.hasScan ? plan.scanDetails.join(' | ') : 'OK — using index'"
+            :class="plan.hasScan ? 'text-red-600' : 'text-green-600'"
+          >
+            <template #after>
+              <span v-if="plan.hasScan">⚠️</span>
+              <span v-else>✓</span>
+            </template>
+          </F7ListItem>
+        </F7List>
+      </template>
+
       <F7Block>
-        <div class="grid grid-cols-2 grid-gap">
+        <div class="grid grid-cols-2 gap-2">
           <F7Button fill color="red" @click="reset">Clear</F7Button>
           <F7Button fill @click="exportMetrics">Export JSON</F7Button>
+          <F7Button
+            v-if="queryPlans.length === 0"
+            tonal
+            class="col-span-2"
+            :loading="isAnalysing"
+            @click="runQueryPlanAnalysis"
+          >
+            Analyse Query Plans
+          </F7Button>
+          <F7Button
+            v-else
+            tonal
+            class="col-span-2"
+            :loading="isAnalysing"
+            @click="runQueryPlanAnalysis"
+          >
+            Re-analyse
+          </F7Button>
         </div>
       </F7Block>
     </F7Page>

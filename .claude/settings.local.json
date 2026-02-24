@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(pnpm type-check:*)",
-      "Bash(pnpm build:dev:*)"
+      "Bash(pnpm build:dev:*)",
+      "Bash(cat:*)"
     ]
   }
 }

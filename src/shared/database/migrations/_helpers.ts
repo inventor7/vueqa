@@ -7,6 +7,40 @@ import type { CreateTableBuilder, Kysely } from "kysely";
 export type SyncStatus = "synced" | "to_create" | "to_update" | "to_delete";
 
 /**
+ * Conflict Resolution Strategy annotation for a table.
+ *
+ * Declare one of these constants in your module's schema file so your
+ * sync service knows which strategy to apply. The actual resolution logic
+ * is in `resolveConflict()` from `@/shared/database/conflicts`.
+ *
+ * ## Choosing a strategy
+ *
+ * | Table type                        | Strategy              | Reason                                    |
+ * |-----------------------------------|-----------------------|-------------------------------------------|
+ * | Master data (products, customers) | `server-wins`         | Server is the source of truth             |
+ * | Draft orders / user edits         | `client-wins`         | Local intent must not be overwritten      |
+ * | Collaborative / shared records    | `latest-write-wins`   | Use `_write_date` to pick the newer write |
+ * | Logs / audit history              | `server-wins`         | Log integrity must be maintained          |
+ *
+ * @example
+ * ```ts
+ * // In your module's schema.ts:
+ * export const TASK_CONFLICT_STRATEGY: ConflictResolutionStrategy = 'latest-write-wins';
+ * export const ORDER_CONFLICT_STRATEGY: ConflictResolutionStrategy = 'client-wins';
+ *
+ * // In your sync service:
+ * import { resolveConflict } from '@/shared/database/conflicts';
+ * const { record, winner } = resolveConflict({
+ *   local, remote, strategy: TASK_CONFLICT_STRATEGY,
+ * });
+ * ```
+ */
+export type ConflictResolutionStrategy =
+  | "server-wins"
+  | "client-wins"
+  | "latest-write-wins";
+
+/**
  * Add base columns for syncable tables.
  *
  * All tables that sync with the backend should use this helper.
@@ -83,4 +117,37 @@ export function generateLocalRuid(): string {
  */
 export function nowISO(): string {
   return new Date().toISOString();
+}
+
+/**
+ * Create a standard index on one or more columns of a table.
+ *
+ * Call this in every migration's `up()` for columns used in WHERE /
+ * ORDER BY / JOIN. SQLite does a full table scan without them.
+ *
+ * @example
+ * ```ts
+ * // Single column
+ * await createIndex(db, 'idx_orders_sync_status', 'orders', ['_sync_status']);
+ *
+ * // Composite (most common query pattern first)
+ * await createIndex(db, 'idx_orders_customer_date', 'orders', ['customer_id', 'order_date']);
+ * ```
+ */
+export async function createIndex(
+  db: Kysely<any>,
+  indexName: string,
+  tableName: string,
+  columns: string[],
+): Promise<void> {
+  const builder = db.schema
+    .createIndex(indexName)
+    .on(tableName)
+    .ifNotExists();
+
+  const built = columns.length === 1
+    ? builder.column(columns[0]!)
+    : builder.columns(columns);
+
+  await built.execute();
 }
