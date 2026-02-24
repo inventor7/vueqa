@@ -140,10 +140,17 @@ class DatabaseService {
       return this.db;
     } catch (error) {
       console.error("[DatabaseService] Initialization failed:", error);
-      // Clean up on failure
+      if (this.connection) {
+        try {
+          await this.connection.close();
+        } catch {
+          /* ignore */
+        }
+      }
       this.db = null;
       this.migrator = null;
       this.connection = null;
+      this.initialized = false;
       throw error;
     } finally {
       this.initializing = false;
@@ -301,11 +308,16 @@ class DatabaseService {
       await Filesystem.copy({ from: url, to: backupUrl });
 
       this.backupUri = backupUrl;
-      console.log(`[DatabaseService] Pre-migration backup created: ${backupUrl}`);
+      console.log(
+        `[DatabaseService] Pre-migration backup created: ${backupUrl}`,
+      );
       return true;
     } catch (err) {
       // Non-fatal: warn but continue — no backup is better than blocking startup
-      console.warn("[DatabaseService] Pre-migration backup failed (continuing without backup):", err);
+      console.warn(
+        "[DatabaseService] Pre-migration backup failed (continuing without backup):",
+        err,
+      );
       return false;
     }
   }
@@ -337,18 +349,47 @@ class DatabaseService {
     const dbName = import.meta.env.VITE_DB_FILENAME || "vueqa";
 
     let conn: SQLiteDBConnection;
-    const isConn = await sqlite.isConnection(dbName, false);
 
-    if (isConn.result) {
-      conn = await sqlite.retrieveConnection(dbName, false);
-    } else {
-      conn = await sqlite.createConnection(
-        dbName,
-        false,
-        "no-encryption",
-        1,
-        false,
-      );
+    try {
+      const isConn = await sqlite.isConnection(dbName, false);
+
+      if (isConn.result) {
+        conn = await sqlite.retrieveConnection(dbName, false);
+      } else {
+        conn = await sqlite.createConnection(
+          dbName,
+          false,
+          "no-encryption",
+          1,
+          false,
+        );
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("already exists")) {
+        console.warn(
+          "[DatabaseService] Orphaned native connection detected (live reload?), resetting...",
+        );
+        try {
+          await CapacitorSQLite.closeConnection({
+            database: dbName,
+            readonly: false,
+          });
+        } catch {
+          console.error(
+            "connection may have already closed on the native side",
+          );
+        }
+        conn = await sqlite.createConnection(
+          dbName,
+          false,
+          "no-encryption",
+          1,
+          false,
+        );
+      } else {
+        throw err;
+      }
     }
 
     const isDBOpen = await conn.isDBOpen();
