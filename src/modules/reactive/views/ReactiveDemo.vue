@@ -137,7 +137,7 @@
     <F7Sheet
       v-model:opened="isAddSheetOpen"
       style="height: auto"
-      push
+      :push="!theme.ios"
       swipe-to-close
       backdrop
     >
